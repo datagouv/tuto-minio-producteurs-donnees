@@ -1,6 +1,10 @@
 # Script d'upload de données dans un bucket Minio
 
-Ce petit dépôt a pour objectif de donner les éléments aux producteurs de données devant publier les données via notre cluster Minio.
+Ce petit dépôt a pour objectif de donner les éléments aux producteurs de données devant publier les données via notre cluster Minio. Le pipeline complet se décompose comme suit :
+1. renseigner la config (comme indiqué ci-dessous) et adapter les chemins et métadonnées du fichiers à uploader dans le code
+2. exécuter le fichier via `python upload_and_publish_file.py`, ce qui va :
+   * uploader le fichier spécifié tel que défini par dans le code, sur notre infrastructure S3, dans le bucket indiqué (NB : il est important de renseigner le `content-type` pour bénéficier des traitements automatisés sur data.gouv.fr (APIfication, conversions automatiques)
+   * référencer le fichier en question en tant que ressource dans le jeu de données spécifié, avec les métadonnées renseignées. Les données sont donc stockées sur le S3, mais exposées et téléchargeables sur data.gouv.fr
 
 ## Installation
 
