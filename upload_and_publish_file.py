@@ -1,8 +1,10 @@
+import magic
 from minio import Minio
 from minio.error import S3Error
 import os
 import requests
 import time
+
 from config import (
     MINIO_URL,
     MINIO_ACCESS_KEY,
@@ -16,46 +18,59 @@ from config import (
 
 
 # Upload a file
-def upload_file_to_minio(bucket, local_path, local_file_name, minio_path, minio_file_name):
+def upload_file_to_minio(
+    bucket: str,
+    local_path: str,
+    local_file_name: str,
+    minio_path: str,
+    minio_file_name: str,
+    content_type: str | None = None,
+) -> None:
+    if not local_path.endswith("/"):
+        local_path += "/"
+    if not minio_path.endswith("/"):
+        minio_path += "/"
+    if content_type is None:
+        content_type = magic.from_file(local_path + local_file_name, mime=True)
+        print(f"Guessed content-type: {content_type}")
     start_time = time.time()
     client = Minio(
         MINIO_URL,
         access_key=MINIO_ACCESS_KEY,
         secret_key=MINIO_SECRET_KEY,
-        secure=True
+        secure=True,
     )
-    # check if bucket exists.
+    # check if bucket exists
     found = client.bucket_exists(bucket)
-    if found:
-        print("Bucket {} exists".format(bucket))   
+    if found: 
         client.fput_object(
-            bucket, minio_path + minio_file_name, local_path + local_file_name,
+            bucket,
+            minio_path + minio_file_name,
+            local_path + local_file_name,
+            content_type=content_type,
         )   
         print("--- Upload in %s seconds ---" % (time.time() - start_time))
-        print('Ressource available : https://{}/{}/{}{}'.format(
-            MINIO_URL,
-            bucket,
-            minio_path,
-            minio_file_name
-        ))
+        print(f"Ressource available : https://{MINIO_URL}/{bucket}/{minio_path}{minio_file_name}")
 
 
 # List all files from a bucket
-def list_files(bucket):
+def list_files(bucket: str, recursive: bool = True) -> list[str]:
     client = Minio(
         MINIO_URL,
         access_key=MINIO_ACCESS_KEY,
         secret_key=MINIO_SECRET_KEY,
-        secure=True
+        secure=True,
     )
-    # check if bucket if exist.
+    # check if bucket exists
     found = client.bucket_exists(bucket)
+    files = []
     if found:
-        print("Bucket {} exists".format(bucket))
-        objects = client.list_objects(bucket, recursive=True)
+        objects = client.list_objects(bucket, recursive=recursive)
         for obj in objects:
             print(obj.object_name)
             print(obj.etag)
+            files.append(obj.object_name)
+    return files
 
 
 # Reference file to data.gouv.fr
@@ -69,9 +84,9 @@ def post_remote_resource(
     type: str = "main",
     schema: dict = {},
     description: str = "",
-    resource_id: str = None,
+    resource_id: str | None = None,
 ):
-    """Create a post in data.gouv.fr
+    """Create a REMOTE resource in data.gouv.fr (file is stored on an other server)
 
     Args:
         api_key (str): API key from data.gouv.fr
@@ -107,18 +122,18 @@ def post_remote_resource(
         r = requests.put(
             url,
             json=payload,
-            headers=headers
+            headers=headers,
         )
-        print(f"See {DATAGOUV_URL}/fr/datasets/{dataset_id}/")
     else:
         url = f"{DATAGOUV_URL}/api/1/datasets/{dataset_id}/resources/"
         print(f"Posting '{title}' at {url}")
         r = requests.post(
             url,
             json=payload,
-            headers=headers
+            headers=headers,
         )
     r.raise_for_status()
+    print(f"See {DATAGOUV_URL}/fr/datasets/{dataset_id}/")
     return r.json()
 
 
